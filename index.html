@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>AI Chat</title>
+<title>Universal AI Chat</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 
@@ -13,72 +14,69 @@
 <style>
 
 body{
-font-family: 'Inter', sans-serif;
-background:#0f172a;
+font-family:'Inter',sans-serif;
 }
 
-.message{
-animation:fade .3s ease;
+.chat-bubble-user{
+background:linear-gradient(135deg,#2563eb,#06b6d4);
+color:white;
+padding:14px 16px;
+border-radius:16px;
+max-width:70%;
+margin-left:auto;
+}
+
+.chat-bubble-ai{
+background:#f3f4f6;
+padding:14px 16px;
+border-radius:16px;
+max-width:70%;
+}
+
+.dark .chat-bubble-ai{
+background:#1f2937;
+color:white;
+}
+
+.fade{
+animation:fade .25s ease;
 }
 
 @keyframes fade{
-from{opacity:0; transform:translateY(10px);}
-to{opacity:1; transform:translateY(0);}
-}
-
-.user{
-background:linear-gradient(135deg,#2563eb,#06b6d4);
-color:white;
-border-radius:18px;
-padding:12px 16px;
-margin-left:auto;
-max-width:70%;
-box-shadow:0 10px 20px rgba(0,0,0,.25);
-}
-
-.ai{
-background:#1e293b;
-color:white;
-border-radius:18px;
-padding:12px 16px;
-max-width:70%;
-box-shadow:0 10px 20px rgba(0,0,0,.25);
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
 }
 
 </style>
 
 </head>
 
-<body class="h-screen flex">
+<body class="bg-gray-100 dark:bg-gray-900 h-screen flex">
 
-<!-- Sidebar -->
+<div class="flex flex-col w-full">
 
-<div class="w-64 bg-black/40 backdrop-blur-lg border-r border-gray-700 flex flex-col">
+<div class="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-800">
 
-<div class="p-5 text-white text-xl font-semibold">
+<h1 class="text-lg font-semibold text-gray-700 dark:text-white">
 Universal AI Chat
-</div>
+</h1>
 
-<button class="mx-4 mb-4 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500">
-New Chat
+<button id="themeBtn" class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700">
+Toggle Theme
 </button>
 
 </div>
 
-<!-- Chat Area -->
-
-<div class="flex-1 flex flex-col">
-
 <div id="messages" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
 
-<div class="p-4 border-t border-gray-700 flex gap-2">
+<div class="p-4 border-t bg-white dark:bg-gray-800 flex gap-2">
 
-<input id="input"
-class="flex-1 p-3 rounded-xl bg-slate-800 text-white outline-none"
+<input id="prompt"
+class="flex-1 p-3 rounded-lg border dark:bg-gray-700 dark:text-white"
 placeholder="Send a message...">
 
-<button id="send"
-class="px-5 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-500">
+<button id="sendBtn"
+class="px-5 py-3 rounded-lg bg-blue-600 text-white">
 Send
 </button>
 
@@ -88,38 +86,103 @@ Send
 
 <script>
 
-const messages=document.getElementById("messages")
-const input=document.getElementById("input")
-const send=document.getElementById("send")
+const API_URL="https://openrouter.ai/api/v1/chat/completions"
 
-send.onclick=sendMessage
-input.addEventListener("keypress",e=>{
-if(e.key==="Enter") sendMessage()
-})
+let API_KEY=localStorage.getItem("api_key")||""
+let MODEL=localStorage.getItem("model_name")||"z-ai/glm-4.5-air:free"
 
-function sendMessage(){
-
-const text=input.value.trim()
-if(!text) return
-
-addMessage(text,"user")
-input.value=""
-
-setTimeout(()=>{
-addMessage("AI response will appear here once connected.","ai")
-},500)
-
+if(!API_KEY){
+API_KEY=prompt("Enter your OpenRouter API Key")
+localStorage.setItem("api_key",API_KEY)
 }
+
+const messagesDiv=document.getElementById("messages")
+const promptInput=document.getElementById("prompt")
+const sendBtn=document.getElementById("sendBtn")
+
+let history=[]
 
 function addMessage(text,type){
 
 const div=document.createElement("div")
-div.className="message "+type
+
+div.className="fade "+(type==="user"?"chat-bubble-user":"chat-bubble-ai")
+
 div.innerText=text
 
-messages.appendChild(div)
-messages.scrollTop=messages.scrollHeight
+messagesDiv.appendChild(div)
 
+messagesDiv.scrollTop=messagesDiv.scrollHeight
+
+}
+
+async function sendMessage(){
+
+const text=promptInput.value.trim()
+
+if(!text)return
+
+addMessage(text,"user")
+
+history.push({role:"user",content:text})
+
+promptInput.value=""
+
+const thinking=document.createElement("div")
+
+thinking.className="chat-bubble-ai"
+
+thinking.innerText="Thinking..."
+
+messagesDiv.appendChild(thinking)
+
+try{
+
+const res=await fetch(API_URL,{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+API_KEY
+},
+
+body:JSON.stringify({
+
+model:MODEL,
+
+messages:history
+
+})
+
+})
+
+const data=await res.json()
+
+const reply=data.choices?.[0]?.message?.content||"No response"
+
+thinking.innerText=reply
+
+history.push({role:"assistant",content:reply})
+
+}catch(e){
+
+thinking.innerText="Error contacting AI"
+
+}
+
+messagesDiv.scrollTop=messagesDiv.scrollHeight
+
+}
+
+sendBtn.onclick=sendMessage
+
+promptInput.addEventListener("keypress",e=>{
+if(e.key==="Enter")sendMessage()
+})
+
+document.getElementById("themeBtn").onclick=()=>{
+document.documentElement.classList.toggle("dark")
 }
 
 </script>

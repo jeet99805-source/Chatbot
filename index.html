@@ -1,191 +1,236 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Universal AI Chat</title>
+<title>AI Learning Assistant</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <style>
-
-body{
-font-family:'Inter',sans-serif;
-}
-
-.chat-bubble-user{
-background:linear-gradient(135deg,#2563eb,#06b6d4);
-color:white;
-padding:14px 16px;
-border-radius:16px;
-max-width:70%;
-margin-left:auto;
-}
-
-.chat-bubble-ai{
-background:#f3f4f6;
-padding:14px 16px;
-border-radius:16px;
-max-width:70%;
-}
-
-.dark .chat-bubble-ai{
-background:#1f2937;
-color:white;
-}
-
-.fade{
-animation:fade .25s ease;
-}
-
-@keyframes fade{
-from{opacity:0;transform:translateY(10px)}
-to{opacity:1;transform:translateY(0)}
-}
-
+body{font-family:Inter,system-ui;background:#0f172a;color:white}
+.sidebar{width:260px}
+.message-user{background:linear-gradient(135deg,#06b6d4,#2563eb)}
+.message-ai{background:#1e293b}
 </style>
-
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 h-screen flex">
+<body class="h-screen flex overflow-hidden">
 
-<div class="flex flex-col w-full">
+<!-- SIDEBAR -->
+<div class="sidebar bg-slate-900 p-4 flex flex-col">
+<div class="flex justify-between items-center mb-4">
+<h1 class="font-bold">AI Chat</h1>
+<button onclick="openSettings()">⚙</button>
+</div>
 
-<div class="flex items-center justify-between p-4 border-b bg-white dark:bg-gray-800">
+<button onclick="newChat()" class="bg-blue-600 p-2 rounded mb-4">New Chat</button>
 
-<h1 class="text-lg font-semibold text-gray-700 dark:text-white">
-Universal AI Chat
-</h1>
+<div id="chatList" class="flex-1 overflow-auto text-sm"></div>
+</div>
 
-<button id="themeBtn" class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700">
-Toggle Theme
-</button>
+<!-- MAIN -->
+<div class="flex-1 flex flex-col">
+
+<!-- HEADER -->
+<div class="p-4 border-b border-slate-700 flex justify-between">
+<div>Universal AI Assistant</div>
+<div class="space-x-2">
+<button onclick="toggleTheme()">🌓</button>
+<button onclick="openSettings()">⚙</button>
+</div>
+</div>
+
+<!-- MESSAGES -->
+<div id="messages" class="flex-1 overflow-auto p-6 space-y-4"></div>
+
+<!-- INPUT -->
+<div class="border-t border-slate-700 p-4 flex gap-2">
+
+<input id="imageInput" type="file" accept="image/*" class="hidden" onchange="uploadImage()">
+
+<button onclick="document.getElementById('imageInput').click()" class="px-3 bg-slate-700 rounded">📷</button>
+
+<textarea id="promptInput" rows="1" class="flex-1 bg-slate-800 p-3 rounded resize-none" placeholder="Ask something..."></textarea>
+
+<button onclick="sendMessage()" class="bg-blue-600 px-4 rounded">Send</button>
 
 </div>
 
-<div id="messages" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+</div>
 
-<div class="p-4 border-t bg-white dark:bg-gray-800 flex gap-2">
 
-<input id="prompt"
-class="flex-1 p-3 rounded-lg border dark:bg-gray-700 dark:text-white"
-placeholder="Send a message...">
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
 
-<button id="sendBtn"
-class="px-5 py-3 rounded-lg bg-blue-600 text-white">
-Send
-</button>
+<div class="bg-slate-900 p-6 rounded-xl w-96 space-y-3">
 
+<h2 class="text-lg font-bold">Settings</h2>
+
+<input id="apiKey" placeholder="OpenRouter API Key" class="w-full p-2 rounded bg-slate-800">
+
+<input id="modelName" value="deepseek/deepseek-chat:free" class="w-full p-2 rounded bg-slate-800">
+
+<textarea id="systemPrompt" rows="4" class="w-full p-2 rounded bg-slate-800"
+placeholder="System Prompt"></textarea>
+
+<div class="flex justify-end gap-2">
+<button onclick="saveSettings()" class="bg-blue-600 px-3 py-1 rounded">Save</button>
+<button onclick="closeSettings()" class="bg-slate-700 px-3 py-1 rounded">Close</button>
 </div>
 
 </div>
+</div>
+
+
 
 <script>
 
-const API_URL="https://openrouter.ai/api/v1/chat/completions"
+let messages=[]
+let chats=[]
+let currentChat=0
 
-let API_KEY=localStorage.getItem("api_key")||""
-let MODEL=localStorage.getItem("model_name")||"z-ai/glm-4.5-air:free"
-
-if(!API_KEY){
-API_KEY=prompt("Enter your OpenRouter API Key")
-localStorage.setItem("api_key",API_KEY)
+function openSettings(){
+document.getElementById("settingsModal").classList.remove("hidden")
 }
 
-const messagesDiv=document.getElementById("messages")
-const promptInput=document.getElementById("prompt")
-const sendBtn=document.getElementById("sendBtn")
+function closeSettings(){
+document.getElementById("settingsModal").classList.add("hidden")
+}
 
-let history=[]
+function saveSettings(){
+localStorage.apiKey=document.getElementById("apiKey").value
+localStorage.model=document.getElementById("modelName").value
+localStorage.systemPrompt=document.getElementById("systemPrompt").value
+closeSettings()
+}
 
-function addMessage(text,type){
+function newChat(){
+messages=[]
+renderMessages()
+}
 
-const div=document.createElement("div")
+function renderMessages(){
+let container=document.getElementById("messages")
+container.innerHTML=""
 
-div.className="fade "+(type==="user"?"chat-bubble-user":"chat-bubble-ai")
+messages.forEach(m=>{
+let div=document.createElement("div")
 
-div.innerText=text
+div.className="p-3 rounded max-w-xl "+(m.role=="user"?"message-user ml-auto":"message-ai")
 
-messagesDiv.appendChild(div)
+div.innerHTML=marked.parse(m.content)
 
-messagesDiv.scrollTop=messagesDiv.scrollHeight
+container.appendChild(div)
+})
 
+container.scrollTop=container.scrollHeight
 }
 
 async function sendMessage(){
 
-const text=promptInput.value.trim()
+let input=document.getElementById("promptInput")
+let text=input.value.trim()
 
 if(!text)return
 
-addMessage(text,"user")
+messages.push({role:"user",content:text})
+renderMessages()
 
-history.push({role:"user",content:text})
+input.value=""
 
-promptInput.value=""
+messages.push({role:"assistant",content:"Thinking..."})
+renderMessages()
 
-const thinking=document.createElement("div")
+let apiKey=localStorage.apiKey
+let model=localStorage.model||"deepseek/deepseek-chat:free"
+let systemPrompt=localStorage.systemPrompt||"You are a helpful AI tutor."
 
-thinking.className="chat-bubble-ai"
+let body={
+model:model,
+messages:[
+{role:"system",content:systemPrompt},
+...messages
+],
+stream:true
+}
 
-thinking.innerText="Thinking..."
+let response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+method:"POST",
+headers:{
+"Authorization":"Bearer "+apiKey,
+"Content-Type":"application/json"
+},
+body:JSON.stringify(body)
+})
 
-messagesDiv.appendChild(thinking)
+let reader=response.body.getReader()
+let decoder=new TextDecoder()
+
+messages[messages.length-1].content=""
+
+while(true){
+
+const {done,value}=await reader.read()
+
+if(done)break
+
+let chunk=decoder.decode(value)
+
+let lines=chunk.split("\n")
+
+for(let line of lines){
+
+if(line.startsWith("data:")){
+
+let json=line.replace("data:","").trim()
+
+if(json==="[DONE]")break
 
 try{
-
-const res=await fetch(API_URL,{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json",
-"Authorization":"Bearer "+API_KEY
-},
-
-body:JSON.stringify({
-
-model:MODEL,
-
-messages:history
-
-})
-
-})
-
-const data=await res.json()
-
-const reply=data.choices?.[0]?.message?.content||"No response"
-
-thinking.innerText=reply
-
-history.push({role:"assistant",content:reply})
-
-}catch(e){
-
-thinking.innerText="Error contacting AI"
+let obj=JSON.parse(json)
+let token=obj.choices[0].delta?.content||""
+messages[messages.length-1].content+=token
+renderMessages()
+}catch(e){}
+}
+}
+}
 
 }
 
-messagesDiv.scrollTop=messagesDiv.scrollHeight
+function uploadImage(){
+
+let file=document.getElementById("imageInput").files[0]
+
+if(!file)return
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+messages.push({
+role:"user",
+content:`![image](${reader.result})`
+})
+
+renderMessages()
 
 }
 
-sendBtn.onclick=sendMessage
+reader.readAsDataURL(file)
 
-promptInput.addEventListener("keypress",e=>{
-if(e.key==="Enter")sendMessage()
-})
+}
 
-document.getElementById("themeBtn").onclick=()=>{
-document.documentElement.classList.toggle("dark")
+function toggleTheme(){
+document.body.classList.toggle("bg-white")
+document.body.classList.toggle("text-black")
 }
 
 </script>
 
 </body>
 </html>
+```

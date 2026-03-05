@@ -1,19 +1,21 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Learning Assistant</title>
+
+<title>Universal AI Assistant</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <style>
+
 body{
 font-family:Inter,system-ui;
-background:linear-gradient(180deg,#ffffff,#f3f6ff);
-color:#1f2937;
+background:linear-gradient(180deg,#ffffff,#f3f4ff);
+height:100vh;
+overflow:hidden;
 }
 
 .sidebar{
@@ -22,238 +24,331 @@ background:white;
 border-right:1px solid #e5e7eb;
 }
 
+.fade-in{
+animation:fade .3s ease;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(8px)}
+to{opacity:1;transform:translateY(0)}
+}
+
 .message-user{
 background:linear-gradient(135deg,#6366f1,#8b5cf6);
 color:white;
-border-radius:18px;
 padding:12px;
+border-radius:18px;
 max-width:70%;
 }
 
 .message-ai{
 background:white;
-border-radius:18px;
-box-shadow:0 10px 30px rgba(0,0,0,0.08);
 padding:12px;
+border-radius:18px;
+box-shadow:0 10px 25px rgba(0,0,0,.08);
 max-width:70%;
 }
+
+.logo{
+width:48px;
+height:48px;
+border-radius:16px;
+background:linear-gradient(135deg,#6366f1,#8b5cf6);
+}
+
+.inputbox{
+border-radius:16px;
+box-shadow:0 10px 25px rgba(0,0,0,.08);
+}
+
 </style>
 </head>
 
-<body class="h-screen flex overflow-hidden">
+<body class="flex">
 
-<!-- SIDEBAR -->
-<div class="sidebar bg-slate-900 p-4 flex flex-col">
-<div class="flex justify-between items-center mb-4">
-<h1 class="font-bold">AI Chat</h1>
-<button onclick="openSettings()">⚙</button>
+<div id="loading" class="fixed inset-0 flex items-center justify-center bg-white z-50">
+Loading App...
 </div>
 
-<button onclick="newChat()" class="bg-blue-600 p-2 rounded mb-4">New Chat</button>
+<!-- SIDEBAR -->
 
-<div id="chatList" class="flex-1 overflow-auto text-sm"></div>
+<div class="sidebar flex flex-col p-4">
+
+<div class="flex justify-between items-center mb-4">
+
+<h1 class="font-bold">AI Chat</h1>
+
+<button onclick="openSettings()">⚙</button>
+
+</div>
+
+<button onclick="newChat()" class="bg-indigo-600 text-white p-2 rounded mb-4">
++ New Chat
+</button>
+
+<div id="chatList" class="flex-1 overflow-y-auto text-sm"></div>
+
 </div>
 
 <!-- MAIN -->
+
 <div class="flex-1 flex flex-col">
 
 <!-- HEADER -->
-<div class="p-4 border-b border-slate-700 flex justify-between">
-<div>Universal AI Assistant</div>
-<div class="space-x-2">
-<button onclick="toggleTheme()">🌓</button>
-<button onclick="openSettings()">⚙</button>
-</div>
+
+<div class="p-4 border-b bg-white flex items-center gap-3">
+
+<div class="logo"></div>
+
+<h2 class="font-semibold">
+Universal AI Assistant
+</h2>
+
 </div>
 
-<!-- MESSAGES -->
-<div id="messages" class="flex-1 overflow-auto p-6 space-y-4"></div>
+<!-- CHAT -->
+
+<div id="chatArea" class="flex-1 overflow-y-auto p-6 space-y-4">
+
+<div id="welcome" class="text-center mt-24">
+
+<div class="logo mx-auto mb-6"></div>
+
+<h2 class="text-3xl font-semibold text-gray-700">
+Hello, User
+</h2>
+
+<p class="text-gray-500 mt-2">
+How can I help you today?
+</p>
+
+</div>
+
+</div>
 
 <!-- INPUT -->
-<div class="border-t border-slate-700 p-4 flex gap-2">
 
-<input id="imageInput" type="file" accept="image/*" class="hidden" onchange="uploadImage()">
+<div class="p-4 border-t bg-white">
 
-<button onclick="document.getElementById('imageInput').click()" class="px-3 bg-slate-700 rounded">📷</button>
+<div class="flex gap-2">
 
-<textarea id="promptInput" rows="1" class="flex-1 bg-slate-800 p-3 rounded resize-none" placeholder="Ask something..."></textarea>
+<button onclick="document.getElementById('fileInput').click()">
+📎
+</button>
 
-<button onclick="sendMessage()" class="bg-blue-600 px-4 rounded">Send</button>
+<input id="fileInput" type="file" hidden>
+
+<input
+id="messageInput"
+class="flex-1 border p-3 inputbox"
+placeholder="Ask anything..."
+>
+
+<button
+onclick="sendMessage()"
+class="bg-indigo-600 text-white px-4 rounded"
+>
+Send
+</button>
+
+</div>
 
 </div>
 
 </div>
 
+<!-- SETTINGS -->
 
-<!-- SETTINGS MODAL -->
-<div id="settingsModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
+<div
+id="settingsModal"
+class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center"
+>
 
-<div class="bg-slate-900 p-6 rounded-xl w-96 space-y-3">
+<div class="bg-white p-6 rounded w-80 space-y-4">
 
-<h2 class="text-lg font-bold">Settings</h2>
+<h2 class="font-bold text-lg">
+Settings
+</h2>
 
-<input id="apiKey" placeholder="OpenRouter API Key" class="w-full p-2 rounded bg-slate-800">
+<input
+id="apiKey"
+class="border p-2 w-full"
+placeholder="OpenRouter API Key"
+>
 
-<input id="modelName" value="deepseek/deepseek-chat:free" class="w-full p-2 rounded bg-slate-800">
+<input
+id="modelName"
+class="border p-2 w-full"
+value="deepseek/deepseek-r1:free"
+>
 
-<textarea id="systemPrompt" rows="4" class="w-full p-2 rounded bg-slate-800"
-placeholder="System Prompt"></textarea>
+<textarea
+id="systemPrompt"
+class="border p-2 w-full"
+rows="4"
+placeholder="System Prompt"
+></textarea>
 
-<div class="flex justify-end gap-2">
-<button onclick="saveSettings()" class="bg-blue-600 px-3 py-1 rounded">Save</button>
-<button onclick="closeSettings()" class="bg-slate-700 px-3 py-1 rounded">Close</button>
+<button
+onclick="saveSettings()"
+class="bg-indigo-600 text-white w-full p-2 rounded"
+>
+Save
+</button>
+
+<button
+onclick="closeSettings()"
+class="w-full border p-2 rounded"
+>
+Close
+</button>
+
 </div>
 
 </div>
-</div>
-
-
 
 <script>
 
-let messages=[]
-let chats=[]
-let currentChat=0
+const API_URL="https://openrouter.ai/api/v1/chat/completions"
 
-function openSettings(){
-document.getElementById("settingsModal").classList.remove("hidden")
-}
-
-function closeSettings(){
-document.getElementById("settingsModal").classList.add("hidden")
-}
-
-function saveSettings(){
-localStorage.apiKey=document.getElementById("apiKey").value
-localStorage.model=document.getElementById("modelName").value
-localStorage.systemPrompt=document.getElementById("systemPrompt").value
-closeSettings()
-}
+let currentChat=[]
 
 function newChat(){
-messages=[]
-renderMessages()
+currentChat=[]
+renderChat()
 }
 
-function renderMessages(){
-let container=document.getElementById("messages")
-container.innerHTML=""
+function renderChat(){
 
-messages.forEach(m=>{
-let div=document.createElement("div")
+const area=document.getElementById("chatArea")
+const welcome=document.getElementById("welcome")
 
-div.className="p-3 rounded max-w-xl "+(m.role=="user"?"message-user ml-auto":"message-ai")
+if(currentChat.length>0) welcome.style.display="none"
+
+area.innerHTML=""
+
+currentChat.forEach(m=>{
+
+const div=document.createElement("div")
+
+div.className="fade-in "+(m.role==="user"
+?"message-user ml-auto"
+:"message-ai")
 
 div.innerHTML=marked.parse(m.content)
 
-container.appendChild(div)
+area.appendChild(div)
+
 })
 
-container.scrollTop=container.scrollHeight
+area.scrollTop=area.scrollHeight
+
 }
 
 async function sendMessage(){
 
-let input=document.getElementById("promptInput")
-let text=input.value.trim()
+const input=document.getElementById("messageInput")
+
+const text=input.value.trim()
 
 if(!text)return
 
-messages.push({role:"user",content:text})
-renderMessages()
-
 input.value=""
 
-messages.push({role:"assistant",content:"Thinking..."})
-renderMessages()
+currentChat.push({role:"user",content:text})
 
-let apiKey=localStorage.apiKey
-let model=localStorage.model||"deepseek/deepseek-chat:free"
-let systemPrompt=localStorage.systemPrompt||"You are a helpful AI tutor."
+renderChat()
 
-let body={
-model:model,
-messages:[
-{role:"system",content:systemPrompt},
-...messages
-],
-stream:true
+const apiKey=localStorage.getItem("apiKey")
+
+const model=localStorage.getItem("model")||"deepseek/deepseek-r1:free"
+
+if(!apiKey){
+alert("Add API key in settings")
+return
 }
 
-let response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+const aiMsg={role:"assistant",content:"Thinking..."}
+
+currentChat.push(aiMsg)
+
+renderChat()
+
+try{
+
+const res=await fetch(API_URL,{
 method:"POST",
 headers:{
 "Authorization":"Bearer "+apiKey,
 "Content-Type":"application/json"
 },
-body:JSON.stringify(body)
+body:JSON.stringify({
+model:model,
+messages:currentChat
+})
 })
 
-let reader=response.body.getReader()
-let decoder=new TextDecoder()
+const data=await res.json()
 
-messages[messages.length-1].content=""
+aiMsg.content=data.choices[0].message.content
 
-while(true){
+renderChat()
 
-const {done,value}=await reader.read()
+}catch(e){
 
-if(done)break
+aiMsg.content="Network error"
 
-let chunk=decoder.decode(value)
+renderChat()
 
-let lines=chunk.split("\n")
-
-for(let line of lines){
-
-if(line.startsWith("data:")){
-
-let json=line.replace("data:","").trim()
-
-if(json==="[DONE]")break
-
-try{
-let obj=JSON.parse(json)
-let token=obj.choices[0].delta?.content||""
-messages[messages.length-1].content+=token
-renderMessages()
-}catch(e){}
-}
-}
 }
 
 }
 
-function uploadImage(){
+function openSettings(){
 
-let file=document.getElementById("imageInput").files[0]
+document.getElementById("settingsModal").classList.remove("hidden")
 
-if(!file)return
+document.getElementById("apiKey").value=
+localStorage.getItem("apiKey")||""
 
-let reader=new FileReader()
+document.getElementById("modelName").value=
+localStorage.getItem("model")||"deepseek/deepseek-r1:free"
 
-reader.onload=function(){
-
-messages.push({
-role:"user",
-content:`![image](${reader.result})`
-})
-
-renderMessages()
+document.getElementById("systemPrompt").value=
+localStorage.getItem("systemPrompt")||""
 
 }
 
-reader.readAsDataURL(file)
+function closeSettings(){
+
+document.getElementById("settingsModal").classList.add("hidden")
 
 }
 
-function toggleTheme(){
-document.body.classList.toggle("bg-white")
-document.body.classList.toggle("text-black")
+function saveSettings(){
+
+localStorage.setItem(
+"apiKey",
+document.getElementById("apiKey").value
+)
+
+localStorage.setItem(
+"model",
+document.getElementById("modelName").value
+)
+
+localStorage.setItem(
+"systemPrompt",
+document.getElementById("systemPrompt").value
+)
+
+closeSettings()
+
 }
+
+document.getElementById("loading").style.display="none"
 
 </script>
 
 </body>
 </html>
-```

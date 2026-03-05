@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -13,7 +14,7 @@
 
 body{
 font-family:Inter,system-ui;
-background:linear-gradient(180deg,#ffffff,#f3f4ff);
+background:linear-gradient(180deg,#ffffff,#eef2ff);
 height:100vh;
 overflow:hidden;
 }
@@ -22,15 +23,6 @@ overflow:hidden;
 width:260px;
 background:white;
 border-right:1px solid #e5e7eb;
-}
-
-.fade-in{
-animation:fade .3s ease;
-}
-
-@keyframes fade{
-from{opacity:0;transform:translateY(8px)}
-to{opacity:1;transform:translateY(0)}
 }
 
 .message-user{
@@ -52,13 +44,17 @@ max-width:70%;
 .logo{
 width:48px;
 height:48px;
-border-radius:16px;
+border-radius:14px;
 background:linear-gradient(135deg,#6366f1,#8b5cf6);
 }
 
-.inputbox{
-border-radius:16px;
-box-shadow:0 10px 25px rgba(0,0,0,.08);
+.fade{
+animation:fade .25s ease;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(8px)}
+to{opacity:1;transform:translateY(0)}
 }
 
 </style>
@@ -67,14 +63,14 @@ box-shadow:0 10px 25px rgba(0,0,0,.08);
 <body class="flex">
 
 <div id="loading" class="fixed inset-0 flex items-center justify-center bg-white z-50">
-Loading App...
+Loading...
 </div>
 
 <!-- SIDEBAR -->
 
 <div class="sidebar flex flex-col p-4">
 
-<div class="flex justify-between items-center mb-4">
+<div class="flex justify-between mb-4">
 
 <h1 class="font-bold">AI Chat</h1>
 
@@ -85,8 +81,6 @@ Loading App...
 <button onclick="newChat()" class="bg-indigo-600 text-white p-2 rounded mb-4">
 + New Chat
 </button>
-
-<div id="chatList" class="flex-1 overflow-y-auto text-sm"></div>
 
 </div>
 
@@ -132,22 +126,13 @@ How can I help you today?
 
 <div class="flex gap-2">
 
-<button onclick="document.getElementById('fileInput').click()">
-📎
-</button>
-
-<input id="fileInput" type="file" hidden>
-
-<input
-id="messageInput"
-class="flex-1 border p-3 inputbox"
-placeholder="Ask anything..."
->
+<input id="messageInput"
+class="flex-1 border p-3 rounded"
+placeholder="Ask anything...">
 
 <button
 onclick="sendMessage()"
-class="bg-indigo-600 text-white px-4 rounded"
->
+class="bg-indigo-600 text-white px-4 rounded">
 Send
 </button>
 
@@ -159,47 +144,33 @@ Send
 
 <!-- SETTINGS -->
 
-<div
-id="settingsModal"
-class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center"
->
+<div id="settingsModal"
+class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center">
 
 <div class="bg-white p-6 rounded w-80 space-y-4">
 
-<h2 class="font-bold text-lg">
-Settings
-</h2>
+<h2 class="font-bold text-lg">Settings</h2>
 
-<input
-id="apiKey"
+<input id="apiKey"
 class="border p-2 w-full"
-placeholder="OpenRouter API Key"
->
+placeholder="OpenRouter API Key">
 
-<input
-id="modelName"
+<input id="modelName"
 class="border p-2 w-full"
-value="deepseek/deepseek-r1:free"
->
+value="mistralai/mistral-7b-instruct">
 
-<textarea
-id="systemPrompt"
+<textarea id="systemPrompt"
 class="border p-2 w-full"
 rows="4"
-placeholder="System Prompt"
-></textarea>
+placeholder="System Prompt"></textarea>
 
-<button
-onclick="saveSettings()"
-class="bg-indigo-600 text-white w-full p-2 rounded"
->
+<button onclick="saveSettings()"
+class="bg-indigo-600 text-white w-full p-2 rounded">
 Save
 </button>
 
-<button
-onclick="closeSettings()"
-class="w-full border p-2 rounded"
->
+<button onclick="closeSettings()"
+class="border w-full p-2 rounded">
 Close
 </button>
 
@@ -211,37 +182,40 @@ Close
 
 const API_URL="https://openrouter.ai/api/v1/chat/completions"
 
-let currentChat=[]
+let messages=[]
 
 function newChat(){
-currentChat=[]
+messages=[]
 renderChat()
 }
 
 function renderChat(){
 
-const area=document.getElementById("chatArea")
+const chat=document.getElementById("chatArea")
 const welcome=document.getElementById("welcome")
 
-if(currentChat.length>0) welcome.style.display="none"
+chat.innerHTML=""
 
-area.innerHTML=""
+if(messages.length===0){
+chat.appendChild(welcome)
+return
+}
 
-currentChat.forEach(m=>{
+messages.forEach(m=>{
 
 const div=document.createElement("div")
 
-div.className="fade-in "+(m.role==="user"
+div.className="fade "+(m.role==="user"
 ?"message-user ml-auto"
 :"message-ai")
 
 div.innerHTML=marked.parse(m.content)
 
-area.appendChild(div)
+chat.appendChild(div)
 
 })
 
-area.scrollTop=area.scrollHeight
+chat.scrollTop=chat.scrollHeight
 
 }
 
@@ -255,48 +229,61 @@ if(!text)return
 
 input.value=""
 
-currentChat.push({role:"user",content:text})
+messages.push({role:"user",content:text})
+
+renderChat()
+
+const thinking={role:"assistant",content:"Thinking..."}
+
+messages.push(thinking)
 
 renderChat()
 
 const apiKey=localStorage.getItem("apiKey")
 
-const model=localStorage.getItem("model")||"deepseek/deepseek-r1:free"
-
 if(!apiKey){
-alert("Add API key in settings")
+thinking.content="Add API key in settings."
+renderChat()
 return
 }
 
-const aiMsg={role:"assistant",content:"Thinking..."}
-
-currentChat.push(aiMsg)
-
-renderChat()
-
 try{
 
-const res=await fetch(API_URL,{
+const response=await fetch(API_URL,{
 method:"POST",
 headers:{
 "Authorization":"Bearer "+apiKey,
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-model:model,
-messages:currentChat
+
+model:localStorage.getItem("model")||"mistralai/mistral-7b-instruct",
+
+messages:[
+{
+role:"system",
+content:localStorage.getItem("systemPrompt")||
+"You are a helpful AI assistant."
+},
+...messages.filter(m=>m.role!=="assistant")
+]
+
 })
 })
 
-const data=await res.json()
+const data=await response.json()
 
-aiMsg.content=data.choices[0].message.content
+if(data.error){
+thinking.content=data.error.message
+}else{
+thinking.content=data.choices[0].message.content
+}
 
 renderChat()
 
-}catch(e){
+}catch(err){
 
-aiMsg.content="Network error"
+thinking.content="Network error. Check API key or model."
 
 renderChat()
 
@@ -312,7 +299,7 @@ document.getElementById("apiKey").value=
 localStorage.getItem("apiKey")||""
 
 document.getElementById("modelName").value=
-localStorage.getItem("model")||"deepseek/deepseek-r1:free"
+localStorage.getItem("model")||"mistralai/mistral-7b-instruct"
 
 document.getElementById("systemPrompt").value=
 localStorage.getItem("systemPrompt")||""
